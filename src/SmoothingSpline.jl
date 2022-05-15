@@ -43,7 +43,7 @@ end
 MMI.@mlj_model mutable struct SmoothingSpline <: MMI.Deterministic
     λ::AbstractFloat = 1.0::(_ > 0.0)
     η::AbstractFloat = 1.0::(_ > 0.0)
-    p::Integer       = 2::(_ > 1)
+    p::Integer       = 2::(_ > 0)
 end
 function MMI.fit(model::SmoothingSpline, verbosity::Int, X, y)
     # Extracting relevant data
