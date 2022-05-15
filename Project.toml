@@ -1,0 +1,24 @@
+name = "GeneralizedSmoothingSplines"
+uuid = "718f61ba-2cc5-441a-b676-9c36f8ce8510"
+authors = ["Mikkel Paltorp Schmitt"]
+version = "0.1.0"
+
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
+MLJModelInterface = "e80e1ace-859a-464e-9ed9-23947d8ae3ea"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+SymSemiseparableMatrices = "c927be06-f564-11e9-2e25-11633cdb9fcb"
+
+[compat]
+SymSemiseparableMatrices = ">= 0.1.1"
+julia = "1.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
