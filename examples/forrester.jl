@@ -1,6 +1,7 @@
 using Plots
 using Printf
 using DataFrames
+using SpecialFunctions
 using GeneralizedSmoothingSplines
 using MLJ
 using RDatasets
@@ -10,40 +11,36 @@ sigma   = 2.0          # noise standard deviation
 a,b     = -0.2,1.1     # interval [a,b]
 delta   = b - a        # Interval Width
 
-t = a .+ sort(rand(n))*delta;
+X = a .+ sort(rand(n))*delta;
 # FORRESTER ET AL. (2008) FUNCTION
 f(t) = (6.0*t .- 2.0).^2 .* sin.(12.0*t .- 4.0)
-targets = f(t) + sigma*randn(length(t));
+y = f(X) + sigma*randn(length(X));
 
-
-# cars = dataset("datasets","cars")
-# t = map(Float64,convert(Array,cars[!,:Speed]))
-# targets = map(Float64,convert(Array,cars[!,:Dist]))
+# Defining spline with roughness penalty λ 
+spl = SmoothingSpline(λ = 1e-5) # Defining spline with roughness penalty λ 
+preds = predict(spl,X,y)  # Fiting spline to the data
 
 # Plotting
-scatter(t, targets, ms=2, label="Observations", xlims=(a,b), xlabel="t") 
+scatter(X, y, ms=2, label="Observations", xlims=(a,b), xlabel="t") 
 plot!(a:delta/n:b, f(a:delta/n:b), label="f(t)",color=:black, ls=:dash,lw=1)
-# Defining Spline
-spl = SmoothingSpline()
-df = DataFrame(t = t)
+plot!(X,preds,label="Interpolation")
 
+# Computing optimal λ with respect to the generalized marginal likelihood
+mach = machine(spl,X,y) # Combining spline with data
+optimize!(mach)         # Optimizing
 
-mach = machine(spl,df,targets)
-fit!(mach)
-
+# Evaluating between knots
 m = 100
 Xnew = sort(a .+ sort(rand(m))*delta)
-preds = predict(mach,Xnew)
+new_preds = predict(mach,Xnew)
 
-c = mach.fitresult[:c]
-d = mach.fitresult[:d]
-K = mach.fitresult[:K]
-H = mach.fitresult[:H]
+# Extracting predictions of the spline
+preds = predict(mach)
 
-scatter(t, targets, ms=2, label="Observations", xlims=(a,b), xlabel="t",legend=:topleft) 
+scatter(X, y, ms=2, label="Observations", xlims=(a,b), xlabel="t",legend=:topleft) 
 plot!(a:delta/n:b, f(a:delta/n:b), label="f(t)",color=:black, ls=:dash,lw=1)
-plot!(t, K*c + H*d, label="fit",color=:red, lw=2)
-scatter!(Xnew,preds,color=:green)
+plot!(X, preds, label="fit",color=:red, lw=2)
+scatter!(Xnew,new_preds,color=:green,label="Predictions")
 
 
 L = cholesky(SymSemiseparableMatrix(Ut*δ^(2p-1),Vt), n*smoothingspline.λ)

@@ -9,13 +9,9 @@ y,X = unpack(df, ==(:accel), ==(:times))
 # Define Spline + fit
 spl = SmoothingSpline(p=2) # p is the order of the penalized derivative (p=2, Cubic splines)
 mach = machine(spl,X,y)
-fit!(mach;verbosity=0)
+optimize!(mach)
 # Extract fit and compute fit
-c = mach.fitresult[:c]
-d = mach.fitresult[:d]
-K = mach.fitresult[:K]
-H = mach.fitresult[:H]
-interp = K*c + H*d
+interp = predict(mach)
 # Compute prediction in interval
 a,b = extrema(X)
 Xnew = collect(a+1:1:b-1)

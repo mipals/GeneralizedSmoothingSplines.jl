@@ -3,15 +3,11 @@ include("motor_preds.jl") # Load pre-compute solution
 df = DataFrame(CSV.File("datasets/motor.csv"))
 y,X = unpack(df, ==(:accel), ==(:times))
 # Define Spline + fit
-spl = SmoothingSpline()
+spl = SmoothingSpline(λ = 1e-3)
 mach = machine(spl,X,y)
-fit!(mach;verbosity=0)
+optimize!(mach)
 # Extract fit and compute fit
-c = mach.fitresult[:c]
-d = mach.fitresult[:d]
-K = mach.fitresult[:K]
-H = mach.fitresult[:H]
-interp = K*c + H*d
+interp = predict(mach)
 # Compute prediction in interval
 a,b = extrema(X)
 Xnew = collect(a+1:1:b-1)

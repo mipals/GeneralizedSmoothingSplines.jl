@@ -1,19 +1,25 @@
 module GeneralizedSmoothingSplines
 
-# Using Relevant Packages
+#==========================================================================================
+                                Using Relevant Packages
+==========================================================================================#
 using DataFrames
 using LinearAlgebra
 using SymSemiseparableMatrices
 using Optim
+using MLJ
 using SpecialFunctions
 using MLJModelInterface
 const MMI = MLJModelInterface
 
-
-# Defining a `fit` and `predict` for SmoothingSplines
+#==========================================================================================
+                                Including code files
+==========================================================================================#
 include("SmoothingSpline.jl")
 
-export SmoothingSpline
-
+#==========================================================================================
+                            Exporting user-faced functions 
+==========================================================================================#
+export SmoothingSpline, optimize!
 
 end
