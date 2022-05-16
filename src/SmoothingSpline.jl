@@ -139,7 +139,6 @@ function MMI.fit(model::SmoothingSpline, verbosity::Int, X, y)
     return fitresults, cache, report
 end
 
-
 """
 predict(model::SmoothingSpline, X::AbstractVector, y)
 

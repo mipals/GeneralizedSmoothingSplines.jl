@@ -1,3 +1,9 @@
+using Test
+using GeneralizedSmoothingSplines
+using DataFrames
+using CSV
+using MLJ
+
 # Load Data
 include("motor_preds.jl") # Load pre-compute solution
 df = DataFrame(CSV.File("datasets/motor.csv"))
@@ -13,10 +19,10 @@ a,b = extrema(X)
 Xnew = collect(a+1:1:b-1)
 preds = predict(mach,Xnew)
 # Tests
-@test interp ≈ motor_interp
-@test preds ≈ motor_preds
+@test isapprox(interp, motor_interp, atol=1e-4)
+@test isapprox(preds, motor_preds, atol=1e-4)
 
 # Used for testing
-# scatter(X, y, ms=2, label="Observations", xlabel="time (s)", ylabel="Acceleration (m/s^2)") 
-# plot!(X,interp, label="Spline Fit")
-# scatter!(Xnew,preds)
+scatter(X, y, ms=2, label="Observations", xlabel="time (s)", ylabel="Acceleration (m/s^2)") 
+plot!(X,interp, label="Spline Fit")
+scatter!(Xnew,preds)
