@@ -10,6 +10,8 @@ using Optim
 using MLJ
 using SpecialFunctions
 using MLJModelInterface
+import JuMP
+import Ipopt
 const MMI = MLJModelInterface
 
 #==========================================================================================
@@ -20,6 +22,6 @@ include("SmoothingSpline.jl")
 #==========================================================================================
                             Exporting user-faced functions 
 ==========================================================================================#
-export SmoothingSpline, optimize!
+export SmoothingSpline, tune!
 
 end

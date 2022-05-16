@@ -42,14 +42,32 @@ function log_gml(v,K,H,y)
     return log_gml
 end
 
-
 #==========================================================================================
                                 MLJ functionalities
 ==========================================================================================#
+const shapes = (:unconstrained,:positive,:negative,:increasing,:decreasing,:convex,:concave)
 MMI.@mlj_model mutable struct SmoothingSpline <: MMI.Deterministic
     λ::AbstractFloat = 1.0::(_ > 0.0)
     η::AbstractFloat = 1.0::(_ > 0.0)
     p::Integer       = 2::(_ > 0)
+    shape_restriction::Symbol = :unconstrained::(_ in shapes )
+end
+
+function first_order_finite_difference(X,n)
+    dX = diff(X)
+    h1 = 1.0./[dX;1.0]
+    di = -ones(n).*h1
+    dbu = ones(n-1)./dX
+    return Bidiagonal(di,dbu,:U)[1:end-1,:]
+end
+function second_order_finite_difference(X,n)
+    dX = diff(X)
+    h1 = 1.0./[dX;1.0]
+    h2 = 1.0./[1.0;dX]
+    dl =  ones(n-1).*h1[1:end-1]
+    du =  ones(n-1).*h2[2:end]
+    dt = -ones(n).*(h1 + h2)
+    return Tridiagonal(dl,dt,du)[2:end-1,:]
 end
 
 """
@@ -77,14 +95,50 @@ function MMI.fit(model::SmoothingSpline, verbosity::Int, X, y)
     Ut, Vt = SymSemiseparableMatrices.spline_kernel((t' .- a)/δ,p)
     Σ = SymSemiseparableMatrix(Ut*δ^(2p-1), Vt)
     # Computing Coefficients
-    c,d,_   = compute_coefficients(Σ,H,y,model.λ)
+    if model.shape_restriction == :unconstrained
+        c,d,_   = compute_coefficients(Σ,H,y,model.λ)
+    else
+        B = [Σ + n*model.λ*I H; H' zeros(p,p)]
+        Q = B'*B
+        yhat = [y;zeros(p)]
+        bhat = B'*yhat
+        # T = SplineInterpolation(K,H)
+        T = [Σ H]
+        # Forward Difference. 
+        # Defining QP
+        spline_model = JuMP.Model(Ipopt.Optimizer)
+        JuMP.set_silent(spline_model)
+        JuMP.@variable(spline_model, xvar[1:n+p])
+        JuMP.@objective(spline_model, Min, 0.5*xvar' * Q * xvar - bhat'*xvar)
+        if model.shape_restriction == :positive
+            JuMP.@constraint(spline_model, (T*xvar) .>= 0.0)
+        elseif model.shape_restriction == :negative
+            JuMP.@constraint(spline_model, -(T*xvar) .>= 0.0)
+        elseif model.shape_restriction == :increasing
+            BI = first_order_finite_difference(X,n)
+            JuMP.@constraint(spline_model,  BI*(T*xvar) .>= 0.0)
+        elseif model.shape_restriction == :decreasing
+            BI = first_order_finite_difference(X,n)
+            JuMP.@constraint(spline_model, -BI*(T*xvar) .>= 0.0)
+        elseif model.shape_restriction == :convex
+            TI = second_order_finite_difference(X,n)
+            JuMP.@constraint(spline_model,  TI*(T*xvar) .>= 0.0)
+        elseif model.shape_restriction == :concave
+            TI = second_order_finite_difference(X,n)
+            JuMP.@constraint(spline_model, -TI*(T*xvar) .>= 0.0)
+        end
+        JuMP.optimize!(spline_model)
+        vals = JuMP.value.(xvar)
+        c = vals[1:n]
+        d = vals[n+1:end]
+    end
     model.η = n*model.λ * dot(c,y)/(n - p)
-    # Saving Output
     fitresults = (c = c, d=d, t=t, K=Σ, H=H, fit = Σ*c + H*d)
     cache   = nothing
     report  = NamedTuple{}()
     return fitresults, cache, report
 end
+
 
 """
 predict(model::SmoothingSpline, X::AbstractVector, y)
@@ -130,23 +184,23 @@ function MMI.predict(model::SmoothingSpline, fitresult, Xnew)
 end
 
 """
-optimize!(machine::MLJ.Machine,show_trace=false)
+tune!(machine::MLJ.Machine,show_trace=false)
 
 Computing optimal roughness penealty with respect to the marginal likelihood.\\
 See [section 2.7 of GP for ML](http://gaussianprocess.org/gpml/chapters/RW.pdf)
 """
-function optimize!(machine::MLJ.Machine,show_trace=false)
-    optimize!(machine.model,machine.args[1].data,machine.args[2].data,show_trace)
+function tune!(machine::MLJ.Machine,show_trace=false)
+    tune!(machine.model,machine.args[1].data,machine.args[2].data,show_trace)
     fit!(machine)
 end
 
 """
-optimize!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
+tune!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
 
 Computing optimal roughness penealty with respect to the marginal likelihood.
 See [section 2.7 of GP for ML](http://gaussianprocess.org/gpml/chapters/RW.pdf)
 """
-function optimize!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
+function tune!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
     # Extracting relevant data
     if !(typeof(X) <: AbstractArray)
         t = X[!,Tables.schema(X).names...]
@@ -171,4 +225,24 @@ function optimize!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false
     model.λ = 10.0^res.minimizer
     c,d,_   = compute_coefficients(Σ,H,y,model.λ)
     model.η = n*model.λ * dot(c,y)/(n - p)
+end
+
+
+
+function shape_restrictions(shape, T)
+    if shape == :unconstrained
+        return nothing, nothing
+    elseif shape == :positive
+        return  1.0, 0
+    elseif shape == :negative
+        return -1.0, 0
+    elseif shape == :increasing
+        return  1.0, 1
+    elseif shape == :decreasing
+        return -1.0, 1
+    elseif shape == :convex
+        return  1.0, 2
+    elseif shape == :concave
+        return -1.0, 2
+    end
 end

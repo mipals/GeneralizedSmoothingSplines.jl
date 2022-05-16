@@ -5,7 +5,7 @@ y,X = unpack(df, ==(:accel), ==(:times))
 # Define Spline + fit
 spl = SmoothingSpline(λ = 1e-3)
 mach = machine(spl,X,y)
-optimize!(mach)
+tune!(mach)
 # Extract fit and compute fit
 interp = predict(mach)
 # Compute prediction in interval
