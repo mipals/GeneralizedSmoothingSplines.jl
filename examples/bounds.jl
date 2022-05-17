@@ -14,15 +14,14 @@ m = 10
 Xnew = a .+ sort(rand(m))*delta
 
 # Fitting splines
-λ = 1e-4
-uncon_spl = SmoothingSpline(λ = λ)
+uncon_spl = SmoothingSpline()
 uncon_mach = machine(uncon_spl,X,y) 
 tune!(uncon_mach)
 fit!(uncon_mach)
 uncon_preds = predict(uncon_mach,Xnew)
 
 bounds = (0.0,1,0.0)
-spl = SmoothingSpline(λ = λ,shape_restrictions=(:lowerbound,:upperbound,:increasing),bounds=bounds)
+spl = SmoothingSpline(shape_restrictions=(:lowerbound,:upperbound,:increasing),bounds=bounds)
 mach = machine(spl,X,y) 
 tune!(mach)
 fit!(mach)

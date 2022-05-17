@@ -10,8 +10,8 @@ using Optim
 using MLJ
 using SpecialFunctions
 using MLJModelInterface
+using MadNLP
 import JuMP
-import Ipopt
 const MMI = MLJModelInterface
 
 #==========================================================================================

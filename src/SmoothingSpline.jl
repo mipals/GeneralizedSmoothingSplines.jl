@@ -108,7 +108,7 @@ function MMI.fit(model::SmoothingSpline, verbosity::Int, X, y)
         bhat = B'*yhat
         T = [Σ H]
         # Defining QP
-        spline_model = JuMP.Model(Ipopt.Optimizer)
+        spline_model = JuMP.Model(()->MadNLP.Optimizer(print_level=MadNLP.ERROR,max_iter=100))
         JuMP.set_silent(spline_model)
         JuMP.@variable(spline_model, xvar[1:n+p])
         JuMP.@objective(spline_model, Min, 0.5*xvar' * Q * xvar - bhat'*xvar)
