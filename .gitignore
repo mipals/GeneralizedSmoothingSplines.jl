@@ -2,3 +2,4 @@ src/ShapeRestrictions.jl
 test/.DS_Store
 .DS_Store
 Manifest.toml
+examples/readme.jl
