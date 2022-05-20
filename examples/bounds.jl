@@ -17,14 +17,12 @@ Xnew = a .+ sort(rand(m))*delta
 uncon_spl = SmoothingSpline()
 uncon_mach = machine(uncon_spl,X,y) 
 tune!(uncon_mach)
-fit!(uncon_mach)
 uncon_preds = predict(uncon_mach,Xnew)
 
 bounds = (0.0,1,0.0)
 spl = SmoothingSpline(shape_restrictions=(:lowerbound,:upperbound,:increasing),bounds=bounds)
 mach = machine(spl,X,y) 
 tune!(mach)
-fit!(mach)
 preds = predict(mach,Xnew)
 
 scatter(X,y, label="Data",legend=:topleft,ms=2)

@@ -45,14 +45,14 @@ end
 #==========================================================================================
                                 MLJ functionalities
 ==========================================================================================#
-const shapes = (:unconstrained,:lowerbound,:upperbound,:increasing,:decreasing,:convex,:concave)
-const bounds = Tuple(zeros(length(shapes)))
+const SHAPES = (:unconstrained,:lowerbound,:upperbound,:increasing,:decreasing,:convex,:concave)
+const BOUNDS = Tuple(zeros(length(SHAPES)))
 MMI.@mlj_model mutable struct SmoothingSpline <: MMI.Deterministic
-    λ::AbstractFloat = 1.0::(_ > 0.0)
-    η::AbstractFloat = 1.0::(_ > 0.0)
-    p::Integer       = 2::(_ > 0)
-    shape_restrictions::Tuple = (:unconstrained,)::(issubset(_, shapes))
-    bounds::Tuple = bounds
+    lambda::AbstractFloat     = 1.0::(_ > 0.0)
+    sigma::AbstractFloat      = 1.0::(_ > 0.0)
+    p::Integer                = 2::(_ > 0)
+    shape_restrictions::Tuple = (:unconstrained,)::(issubset(_, SHAPES))
+    bounds::Tuple             = BOUNDS
 end
 
 function first_order_finite_difference(X)
@@ -100,9 +100,9 @@ function MMI.fit(model::SmoothingSpline, verbosity::Int, X, y)
     Σ = SymSemiseparableMatrix(Ut*δ^(2p-1), Vt)
     # Computing Coefficients
     if :unconstrained ∈ model.shape_restrictions
-        c,d,_   = compute_coefficients(Σ,H,y,model.λ)
+        c,d,_   = compute_coefficients(Σ,H,y,model.lambda)
     else
-        B = [Σ + n*model.λ*I H; H' zeros(p,p)]
+        B = [Σ + n*model.lambda*I H; H' zeros(p,p)]
         Q = B'*B
         yhat = [y;zeros(p)]
         bhat = B'*yhat
@@ -136,7 +136,7 @@ function MMI.fit(model::SmoothingSpline, verbosity::Int, X, y)
         c = vals[1:n]
         d = vals[n+1:end]
     end
-    model.η = n*model.λ * dot(c,y)/(n - p)
+    model.sigma = n*model.lambda * dot(c,y)/(n - p)
     fitresults = (c = c, d=d, t=t, K=Σ, H=H, fit = Σ*c + H*d)
     cache   = nothing
     report  = NamedTuple{}()
@@ -192,8 +192,8 @@ tune!(machine::MLJ.Machine,show_trace=false)
 Computing optimal roughness penealty with respect to the marginal likelihood.\\
 See [section 2.7 of GP for ML](http://gaussianprocess.org/gpml/chapters/RW.pdf)
 """
-function tune!(machine::MLJ.Machine,show_trace=false)
-    tune!(machine.model,machine.args[1].data,machine.args[2].data,show_trace)
+function tune!(machine::MLJ.Machine;show_trace=false)
+    tune!(machine.model,machine.args[1].data,machine.args[2].data;show_trace=show_trace)
     fit!(machine)
 end
 
@@ -203,7 +203,7 @@ tune!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
 Computing optimal roughness penealty with respect to the marginal likelihood.
 See [section 2.7 of GP for ML](http://gaussianprocess.org/gpml/chapters/RW.pdf)
 """
-function tune!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
+function tune!(model::SmoothingSpline, X, y::AbstractArray; show_trace=false)
     # Extracting relevant data
     if !(typeof(X) <: AbstractArray)
         t = X[!,Tables.schema(X).names...]
@@ -225,7 +225,7 @@ function tune!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
     # Optimize hyper parameter
     res = optimize(v -> log_gml(v,Σ,H,y), -10.0, 0.0, GoldenSection(),show_trace=show_trace)
     # Extract optimized values and refit
-    model.λ = 10.0^res.minimizer
-    c,_,_   = compute_coefficients(Σ,H,y,model.λ)
-    model.η = n*model.λ * dot(c,y)/(n - p)
+    model.lambda = 10.0^res.minimizer
+    c,_,_   = compute_coefficients(Σ,H,y,model.lambda)
+    model.sigma = n*model.lambda * dot(c,y)/(n - p)
 end

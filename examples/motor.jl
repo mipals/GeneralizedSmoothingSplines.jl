@@ -4,7 +4,7 @@ using DataFrames
 using CSV
 using MLJ
 # Load Data
-df = DataFrame(CSV.File("../test/datasets/motor.csv"))
+df = DataFrame(CSV.File("test/datasets/motor.csv"))
 y,X = unpack(df, ==(:accel), ==(:times))
 # Define Spline + fit
 spl = SmoothingSpline(p=2) # p is the order of the penalized derivative (p=2, Cubic splines)
