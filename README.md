@@ -3,13 +3,13 @@
 [![Build Status](https://github.com/mipals/GeneralizedSmoothingSplines.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mipals/GeneralizedSmoothingSplines.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/mipals/GeneralizedSmoothingSplines.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/mipals/GeneralizedSmoothingSplines.jl)
 
-A (experimental) Julia package for fitting Smoothing Splines of degrees $2p - 1$. The package essentially solve the following optimization problem
+A (experimental) Julia package for fitting Smoothing Splines of degrees $2p - 1$. In order to do so it solve the so-called smoothing spline regression problem
 
 $$
-\underset{f}{\text{minimize}} \quad \frac{1}{n}\sum_{i=1}^n\left(y_i - f(x_i)\right)^2 + \lambda\int_a^b|f(x)|^p\ \mathrm{d}x,
+\underset{s}{\text{minimize}} \quad \frac{1}{n}\sum_{i=1}^n\left(y_i - s(x_i)\right)^2 + \lambda\int_a^b|s^{(p)}(x)|^2\ \mathrm{d}x.
 $$
 
-which has a natural spline of degree $2p - 1$ as its solution (for $p=2$ we have the usual Cubic spline) [1]. It turns out that this problem is equivalent to solving the following system of equations
+where $(x_1,y_1),(x_2,y_2),\dots,(x_n,y_n)$ is a set of observation that satisfy $a < x_1 < x_2 < \dots < x_n < b$. If was shown in [1] that the solution to the smoothing spline regression problem is a natural spline of degree $2p - 1$ (or degree $2p$), meaning that for $p=2$ the solution is the well-known Cubic spline. It turns out that the coefficients for the natural spline can be found by solving the following systems of equations
 
 $$
 \begin{bmatrix}
@@ -28,7 +28,7 @@ y \\
 \quad \Sigma \in \mathbb{R}^{n\times n},\ H \in \mathbb{R}^{n\times p}
 $$
 
-where $\Sigma$ is a so-called extended generator representable semiseparable matrix (EGRSS-matrix) as described in [2]. For these types of matrices all relevant linear algebra routines can be done in $O(p^kn)$, resulting in computations with the same scaling as traditional Cubic smoothing spline fitting [3]. The implementation of these routines can be found in the package [SymSemiseparableMatrices.jl](https://github.com/mipals/SymSemiseparableMatrices.jl).
+where $\Sigma$ is a symmetric and positive semidefinite matrix with a so-called extended generator representable semiseparable (EGRSS) representation and $H$ is a Vandermonde matrix [2]. For EGRSS matrices all relevant linear algebra routines can be done in $O(p^kn)$, resulting in computations with the same scaling as traditional algorithms for Cubic smoothing spline fitting [3]. The implementation of these routines can be found in the package [SymSemiseparableMatrices.jl](https://github.com/mipals/SymSemiseparableMatrices.jl).
 
 In additional to the standard spline fit, the package also includes the possibility of constraining various aspects of the spline, $s(x)$. Currently its supporst constraints on the value of the spline as well as its first and second order derivatives
 

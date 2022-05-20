@@ -170,7 +170,7 @@ function MMI.predict(model::SmoothingSpline, fitresult, Xnew)
     δ = b - a
     # Merge data with new observations
     perm = mergeperm(t,Xnew)
-    T    = mergesorted(t,Xnew)    
+    T    = mergesorted(t,Xnew)
     # Create Taylor Basis
     Hnew = compute_H(Xnew,p)
     # Creating New Kernel Matrix
