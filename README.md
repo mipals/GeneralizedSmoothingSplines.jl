@@ -3,13 +3,21 @@
 [![Build Status](https://github.com/mipals/GeneralizedSmoothingSplines.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mipals/GeneralizedSmoothingSplines.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/mipals/GeneralizedSmoothingSplines.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/mipals/GeneralizedSmoothingSplines.jl)
 
-A (experimental) Julia package for fitting Smoothing Splines of degrees $2p - 1$. In order to do so it solve the so-called smoothing spline regression problem
+A (experimental) Julia package for fitting Smoothing Splines of degrees $2p - 1$. This means solving the $p$-smoothing spline regression problem 
 
 $$
-\underset{s}{\text{minimize}} \quad \frac{1}{n}\sum_{i=1}^n\left(y_i - s(x_i)\right)^2 + \lambda\int_a^b|s^{(p)}(x)|^2\ \mathrm{d}x.
+\underset{s}{\text{minimize}} \quad \frac{1}{n}\sum_{i=1}^n\left(y_i - s(x_i)\right)^2 + \lambda\int_a^b|s^{(p)}(x)|^2\ \mathrm{d}x,
 $$
 
-where $(x_1,y_1),(x_2,y_2),\dots,(x_n,y_n)$ is a set of observation that satisfy $a < x_1 < x_2 < \dots < x_n < b$. If was shown in [1] that the solution to the smoothing spline regression problem is a natural spline of degree $2p - 1$ (or degree $2p$), meaning that for $p=2$ the solution is the well-known Cubic spline. It turns out that the coefficients for the natural spline can be found by solving the following systems of equations
+where $(x_1,y_1),(x_2,y_2),\dots,(x_n,y_n)$ is a set of observation that satisfy $a < x_1 < x_2 < \dots < x_n < b$. It was shown in [1] that the solution to the $p$-smoothing spline regression problem is a natural spline of degree $2p - 1$ (or order $2p$), meaning that for $p=2$ the solution is the well-known Cubic spline. It has been shown the smoothing spline regression problem can be cast to a finite dimensional optimization problem as [2]
+
+$$
+\underset{c \in \mathbb{R}^n,\ d\in\mathbb{R}^p}{\text{minimize}} \quad \frac{1}{n}\left\Vert y - (\Sigma c + Hd)\right\Vert _2^2 + \lambda c^\top \Sigma c,
+$$
+
+where $\Sigma$ is a symmetric and positive semidefinite matrix with a so-called extended generator representable semiseparable (EGRSS) representation and $H$ is a Vandermonde matrix [3]. For EGRSS matrices all relevant linear algebra routines can be performed in $O(p^kn)$, resulting in computations with the same scaling as traditional algorithms for Cubic smoothing spline fitting [4]. The implementation of these routines can be found in the package [SymSemiseparableMatrices.jl](https://github.com/mipals/SymSemiseparableMatrices.jl).
+
+From the optimality conditions of the optimization problem it can be shown that the coefficients $c$ and $d$ must satisfy the following system of equations
 
 $$
 \begin{bmatrix}
@@ -25,20 +33,19 @@ d
 y \\
 0
 \end{bmatrix},
-\quad \Sigma \in \mathbb{R}^{n\times n},\ H \in \mathbb{R}^{n\times p}
+\quad \Sigma \in \mathbb{R}^{n\times n},\ H \in \mathbb{R}^{n\times p},
 $$
 
-where $\Sigma$ is a symmetric and positive semidefinite matrix with a so-called extended generator representable semiseparable (EGRSS) representation and $H$ is a Vandermonde matrix [2]. For EGRSS matrices all relevant linear algebra routines can be done in $O(p^kn)$, resulting in computations with the same scaling as traditional algorithms for Cubic smoothing spline fitting [3]. The implementation of these routines can be found in the package [SymSemiseparableMatrices.jl](https://github.com/mipals/SymSemiseparableMatrices.jl).
+which is the system of equations that this package end up solving. The optimal value of $\lambda$ can be found through the generalized maximum likelihood as described in [3].
 
-In additional to the standard spline fit, the package also includes the possibility of constraining various aspects of the spline, $s(x)$. Currently its supporst constraints on the value of the spline as well as its first and second order derivatives
+#### Shape Restrictions
+In additional to the standard spline fit, the package provides the possibility of constraining various aspects of the spline, $s(x)$. Currently its supports constraints on the value of the spline as well as its first and second order derivatives using finite differences. This is done by solving the previously mentioned finite dimensional optimization problem with added constraints of the form
 
 $$
-s(x) \in [a,b], \quad s'(x) \in [c,d], \quad s''(x) \in [e,f].
+l\ \leq\ D_r( \Sigma c + Hd)\ \leq\ u,
 $$
 
-These ideas follow that of [4], which use finite differences to constrain the derivatives, but this implementation does not assume equidistant spacing as done in [4]. Note that the current implementation is *sloppy* in that it transform everything to dense matrices and solves a Quadratic Program (QP). As a result it is recommended to only use shape restrictions in the case of few data points, which is usually the case when shape restrictions is required.
-
-The package aims to be compatible with the style of the [MLJ](https://github.com/alan-turing-institute/MLJ.jl) framework.
+where $D_r$ is diagonal for constraints on the value of the spline and a finite difference matrix for bounds on the derivatives. These ideas follow that of [5], but this implementation generalizes to grids of nonequidistant spacing. Note that the current implementation is *sloppy* in that it transform everything to dense matrices and solves a Quadratic Program (QP).
 
 ## Usage
 ```julia
@@ -88,10 +95,12 @@ scatter!(Xnew,res_preds,label="Constrained-Preds")
 * [SmoothingSplines.jl](https://github.com/nignatiadis/SmoothingSplines.jl): Follows the style of R's `smooth.spline`. Does not have an automatic selection of λ. Does not include shape constraints.
 
 ## References
-[1] Schoenberg, I. J. “Spline Functions and the Problem of Graduation.” Proceedings of the National Academy of Sciences of the United States of America, 1964.
+[1] I. J. Schoenberg, “Spline Functions and the Problem of Graduation”. 1964.
 
-[2] M. S. Andersen and T. Chen, “Smoothing Splines and Rank Structured Matrices: Revisiting the Spline Kernel,” SIAM Journal on Matrix Analysis and Applications, 2020.
+[2] G. Wahba, "Spline Models for Observational Data". SIAM, Jan. 1990.
 
-[3] Reinsch, Christian H. "Smoothing by spline functions." Numerische mathematik 10.3 (1967): 177-183.
+[3] M. S. Andersen and T. Chen, “Smoothing Splines and Rank Structured Matrices: Revisiting the Spline Kernel”, SIAM Journal on Matrix Analysis and Applications, 2020.
 
-[4] Helene Charlotte Rytgaard, “Statistical models for robust spline smoothing”. MA thesis. University of Copenhagen, 2016.
+[4] C. H. Reinsch "Smoothing by spline functions." Numerische mathematik 10.3 (1967): 177-183.
+
+[5] H. C. Rytgaard, “Statistical models for robust spline smoothing”. MA thesis. University of Copenhagen, 2016.
