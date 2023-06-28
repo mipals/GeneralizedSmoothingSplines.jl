@@ -17,6 +17,6 @@ a,b = extrema(X)
 Xnew = collect(a+1:1:b-1)
 preds = predict(mach,Xnew)
 # Plotting Results
-scatter(X, y, ms=2, label="Observations", xlabel="Time (s)", ylabel="Acceleration (m/s^2)") 
+scatter(X, y, ms=2, label="Observations", xlabel="Time (s)", ylabel="Acceleration (m/s^2)")
 plot!(X,interp, label="Spline Fit")
 scatter!(Xnew,preds)

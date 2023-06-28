@@ -28,7 +28,7 @@ function compute_coefficients(Σ,H,y,λ)
     A = (H'*(L'\(L\H)))
     d = A\(H'*v)
     c = L'\(L\(y - H*d))
-    log_gml = log(dot(y,c))  + 2.0*logdet(L)/(n - p) + logdet(A)/(n - p)
+    log_gml = log(dot(y,c))  + 2*logdet(L)/(n - p) + logdet(A)/(n - p)
     return c, d, log_gml
 end
 """
@@ -38,7 +38,8 @@ Returns the log of the generalized marginal likelihood.\\
 See [section 2.7 of GP for ML](http://gaussianprocess.org/gpml/chapters/RW.pdf)
 """
 function log_gml(v,K,H,y)
-    _,_,log_gml = compute_coefficients(K, H, y, 10.0^v)
+    base = convert(eltype(v),10)
+    _,_,log_gml = compute_coefficients(K, H, y, base^v)
     return log_gml
 end
 
@@ -48,19 +49,19 @@ end
 const SHAPES = (:unconstrained,:lowerbound,:upperbound,:increasing,:decreasing,:convex,:concave)
 const BOUNDS = Tuple(zeros(length(SHAPES)))
 MMI.@mlj_model mutable struct SmoothingSpline <: MMI.Deterministic
-    lambda::AbstractFloat     = 1.0::(_ > 0.0)
-    sigma::AbstractFloat      = 1.0::(_ > 0.0)
+    lambda::AbstractFloat     = 1::(_ > 0)
+    sigma::AbstractFloat      = 1::(_ > 0)
     p::Integer                = 2::(_ > 0)
     shape_restrictions::Tuple = (:unconstrained,)::(issubset(_, SHAPES))
     bounds::Tuple             = BOUNDS
 end
 
 function first_order_finite_difference(X)
-    n = length(X)
+    n  = length(X)
     dX = diff(X)
     h1 = 1.0./[dX;1.0]
-    di = -ones(n).*h1
-    dbu = ones(n-1)./dX
+    di = -ones(eltype(X),n).*h1
+    dbu = ones(eltype(X),n-1)./dX
     return Bidiagonal(di,dbu,:U)[1:end-1,:]
 end
 function second_order_finite_difference(X)
@@ -68,9 +69,9 @@ function second_order_finite_difference(X)
     dX = diff(X)
     h1 = 1.0./[dX;1.0]
     h2 = 1.0./[1.0;dX]
-    dl =  ones(n-1).*h1[1:end-1]
-    du =  ones(n-1).*h2[2:end]
-    dt = -ones(n).*(h1 + h2)
+    dl =  ones(eltype(X),n-1).*h1[1:end-1]
+    du =  ones(eltype(X),n-1).*h2[2:end]
+    dt = -ones(eltype(X),n).*(h1 + h2)
     return Tridiagonal(dl,dt,du)[2:end-1,:]
 end
 
@@ -177,7 +178,7 @@ function MMI.predict(model::SmoothingSpline, fitresult, Xnew)
     UT, VT = SymSemiseparableMatrices.spline_kernel((T' .- a)/δ,p)
     Σ = SymSemiseparableMatrix(UT*δ^(2p-1),VT)
     # Computing Linear Interpolation
-    C = zeros(length(T))
+    C = zeros(eltype(t),length(T))
     C[perm .<= n] .= c
     E = (Σ*C)
     # Extract the values which are relevant for the predictions
@@ -192,8 +193,8 @@ tune!(machine::MLJ.Machine,show_trace=false)
 Computing optimal roughness penealty with respect to the marginal likelihood.\\
 See [section 2.7 of GP for ML](http://gaussianprocess.org/gpml/chapters/RW.pdf)
 """
-function tune!(machine::MLJ.Machine;show_trace=false)
-    tune!(machine.model,machine.args[1].data,machine.args[2].data;show_trace=show_trace)
+function tune!(machine::MLJ.Machine;show_trace=false,lb=-10.0,ub=0.0)
+    tune!(machine.model,machine.args[1].data,machine.args[2].data;show_trace=show_trace,lb=lb,ub=ub)
     fit!(machine)
 end
 
@@ -203,7 +204,9 @@ tune!(model::SmoothingSpline, X, y::AbstractArray, show_trace=false)
 Computing optimal roughness penealty with respect to the marginal likelihood.
 See [section 2.7 of GP for ML](http://gaussianprocess.org/gpml/chapters/RW.pdf)
 """
-function tune!(model::SmoothingSpline, X, y::AbstractArray; show_trace=false)
+function tune!(model::SmoothingSpline, X, y::AbstractArray; show_trace=false, lb=-10.0, ub=0.0)
+    lowerbound = convert.(eltype(y),lb)
+    upperbound = convert.(eltype(y),ub)
     # Extracting relevant data
     if !(typeof(X) <: AbstractArray)
         t = X[!,Tables.schema(X).names...]
@@ -223,9 +226,9 @@ function tune!(model::SmoothingSpline, X, y::AbstractArray; show_trace=false)
     Ut, Vt = SymSemiseparableMatrices.spline_kernel((t' .- a)/δ,p)
     Σ = SymSemiseparableMatrix(Ut*δ^(2p-1), Vt)
     # Optimize hyper parameter
-    res = optimize(v -> log_gml(v,Σ,H,y), -10.0, 0.0, GoldenSection(),show_trace=show_trace)
+    res = optimize(v -> log_gml(v,Σ,H,y), lowerbound, upperbound, GoldenSection(),show_trace=show_trace)
     # Extract optimized values and refit
-    model.lambda = 10.0^res.minimizer
+    model.lambda = convert(eltype(res.minimizer),10)^res.minimizer
     c,_,_   = compute_coefficients(Σ,H,y,model.lambda)
     model.sigma = n*model.lambda * dot(c,y)/(n - p)
 end

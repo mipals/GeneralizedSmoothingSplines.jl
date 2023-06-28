@@ -20,8 +20,8 @@ const MMI = MLJModelInterface
 include("SmoothingSpline.jl")
 
 #==========================================================================================
-                            Exporting user-faced functions 
+                            Exporting user-faced functions
 ==========================================================================================#
-export SmoothingSpline, tune!
+export SmoothingSpline, tune!, predict
 
 end
